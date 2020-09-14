@@ -24,13 +24,13 @@ print(data.head())
 print(data.keys())
 print(data.info())
 print(data.describe())
-print(data.isna().any())
+print(data.isna().any())    #No NA's
 
 data2= pd.pivot_table(data, values = ['age', 'anaemia', 'diabetes', 'creatinine_phosphokinase','ejection_fraction',
                                       'high_blood_pressure', 'platelets', 'serum_creatinine', 'serum_sodium', 'sex',
                                       'smoking'], index = 'DEATH_EVENT', aggfunc= 'mean')
 print(data2)
-
+print('\n')
 #Making some visualizations
 
 sns.set(style = 'darkgrid')
@@ -70,6 +70,7 @@ hypo_results = {'P-Value for Creatinine Phosphokinase: ' : pval_cp , 'P-Value fo
                 'P-Value for Platelets: ' : pval_p, 'P-value for serum_creatinine: ':pval_sc, 'P-value for serum sodium: ': pval_ss}
 for k, v in hypo_results.items():
     print(k + ' ' + str(v))
+    print('\n')
 
 #print(pval_p, pval_cp, pval_ef, pval_sc, pval_ss)
 #It seems that platlet count, creatinine-phosphokinase, ejection_fraction are not significantly different between the dead and alive
@@ -100,15 +101,26 @@ def chi_square_test(crosstable):
     critical_value = chi2.ppf(q = 1-alpha, df=ddof)
     p_value = 1-chi2.cdf(x=chi_square_statistic, df=ddof)
     print(p_value, chi_square_statistic, critical_value)
+    print('\n')
 
 
+print('This is the p-value, chi-square statistic and critical value for smoking')
 chi_square_test(contingency_table_smoking)
+
+print('This is the p-value, chi-square statistic and critical value for age')
 chi_square_test(contingency_table_age)
+
+print('This is the p-value, chi-square statistic and critical value for anaemia')
 chi_square_test(contingency_table_anaemia)
+
+print('This is the p-value, chi-square statistic and critical value for high-blood pressure')
 chi_square_test(contingency_table_hbp)
+
+print('This is the p-value, chi-square statistic and critical value for sex')
 chi_square_test(contingency_table_sex)
 
-#Createing a model
+
+#Creating a model
 X = data.drop('DEATH_EVENT', axis = 1)
 y = data.DEATH_EVENT
 X_train, X_test, y_train, y_test = train_test_split(X,y,test_size= 0.2)
@@ -121,31 +133,55 @@ data_clf = RandomForestClassifier()
 grid_search = GridSearchCV(data_clf, param_grid, cv = 10, scoring = 'f1')
 grid_search.fit(X_train,y_train)
 
-
-#Predicting target and scoring model
-y_pred = grid_search.predict(X_test)
-print('Prediction:' + ' ' + str(y_pred))
-print('Score:' + ' ' + str(grid_search.score(X_test, y_test)))
-print('Below are best parameters and estimators')
-print(grid_search.best_params_)
-print(grid_search.best_estimator_)
-print(grid_search.predict_proba(X_test))
 #Displaying importance scores next to their corresponding attribute names
 feature_importances = grid_search.best_estimator_.feature_importances_
 print('Below are important features')
-print(feature_importances)
+attributes = list(data)
+print(sorted(zip(feature_importances, attributes), reverse = True))
+print('\n')
 
-#Creating a consuion matrix
+#Predicting target and scoring model
+y_train_pred = cross_val_predict(grid_search, X_train, y_train, cv=10)
+y_pred = grid_search.predict(X_test)
+print('Score:' + ' ' + str(grid_search.score(X_test, y_test)) + '\n')
+print('Below are best parameters and estimators' + '\n')
+print('Best parameters' + ' ' + str(grid_search.best_params_) + '\n')
+print('Best estimator' + ' ' + ' ' + str(grid_search.best_estimator_) + '\n')
+print(grid_search.predict_proba(X_test))
+
 
 # Confusion Matrix
 from sklearn.metrics import confusion_matrix
-print(confusion_matrix(y_test, y_pred))
+cf_mat = confusion_matrix(y_train, y_train_pred)
+print(cf_mat)
+print('\n')
+plt.matshow(cf_mat, cmap = plt.cm.gray)         #Plotting the confusion matrix
+plt.show()
+
+# Plotting the errors
+row_sums = cf_mat.sum(axis = 1, keepdims = True)
+norm_cf_mx = cf_mat/row_sums
+np.fill_diagonal(norm_cf_mx, 0)
+plt.matshow(norm_cf_mx, cmap = plt.cm.gray)
+plt.show()
+
+
 # Accuracy
+print('Accuracy score')
 from sklearn.metrics import accuracy_score
 print(accuracy_score(y_test, y_pred))
+print('\n')
+
 # Recall
+y_train_1 = (y_train == 1)
+y_test_1 = (y_test == 1)
 from sklearn.metrics import recall_score
-print(recall_score(y_test, y_pred, average=None))
+print('Recall Score')
+print(recall_score(y_train_1, y_train_pred, average=None))
+print('\n')
+
 # Precision
 from sklearn.metrics import precision_score
-print(precision_score(y_test, y_pred, average=None))
+print('Precision Score')
+print(precision_score(y_train_1, y_train_pred, average=None))
+print('\n')
